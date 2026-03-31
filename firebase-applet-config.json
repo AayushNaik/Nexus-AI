@@ -1,10 +1,10 @@
 {
-  "projectId": "YOUR_PROJECT_ID",
-  "appId": "YOUR_APP_ID",
-  "apiKey": "YOUR_API_KEY",
-  "authDomain": "YOUR_AUTH_DOMAIN",
-  "firestoreDatabaseId": "YOUR_FIRESTORE_DATABASE_ID",
-  "storageBucket": "YOUR_STORAGE_BUCKET",
-  "messagingSenderId": "YOUR_MESSAGING_SENDER_ID",
+  "projectId": "citric-plexus-491415-u0",
+  "appId": "1:848300234416:web:49b537f04dcc304c0f4d75",
+  "apiKey": "AIzaSyAVGQAJyyX1JMHuUiKhAO-paHls5tFf5gI",
+  "authDomain": "citric-plexus-491415-u0.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-59c7a5f2-f023-4ca7-8856-d3c6ca628bba",
+  "storageBucket": "citric-plexus-491415-u0.firebasestorage.app",
+  "messagingSenderId": "848300234416",
   "measurementId": ""
 }

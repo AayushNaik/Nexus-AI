@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { db, auth } from "../lib/firebase";
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc, getDoc } from "firebase/firestore";
 
 // Tool Definitions
 const taskTools: FunctionDeclaration = {
@@ -112,32 +112,48 @@ async function handleTaskAction(args: any, userId: string) {
 
   switch (action) {
     case "create":
-      const newDoc = await addDoc(tasksRef, {
-        title,
-        description: description || "",
-        status: status || "todo",
-        priority: priority || "medium",
-        dueDate: dueDate || null,
-        userId,
-        createdAt: new Date().toISOString()
-      });
-      return { success: true, id: newDoc.id };
+      try {
+        const newDoc = await addDoc(tasksRef, {
+          title,
+          description: description || "",
+          status: status || "todo",
+          priority: priority || "medium",
+          dueDate: dueDate || null,
+          userId,
+          createdAt: new Date().toISOString()
+        });
+        return { success: true, id: newDoc.id };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.CREATE, "tasks");
+      }
     case "list":
-      const q = query(tasksRef, where("userId", "==", userId));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const q = query(tasksRef, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.LIST, "tasks");
+      }
     case "update":
       if (!taskId) return { error: "taskId required" };
-      const updates: any = {};
-      if (status) updates.status = status;
-      if (priority) updates.priority = priority;
-      if (dueDate) updates.dueDate = dueDate;
-      await updateDoc(doc(db, "tasks", taskId), updates);
-      return { success: true };
+      try {
+        const updates: any = {};
+        if (status) updates.status = status;
+        if (priority) updates.priority = priority;
+        if (dueDate) updates.dueDate = dueDate;
+        await updateDoc(doc(db, "tasks", taskId), updates);
+        return { success: true };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.UPDATE, `tasks/${taskId}`);
+      }
     case "delete":
       if (!taskId) return { error: "taskId required" };
-      await deleteDoc(doc(db, "tasks", taskId));
-      return { success: true };
+      try {
+        await deleteDoc(doc(db, "tasks", taskId));
+        return { success: true };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.DELETE, `tasks/${taskId}`);
+      }
   }
 }
 
@@ -147,20 +163,32 @@ async function handleNoteAction(args: any, userId: string) {
 
   switch (action) {
     case "create":
-      const newDoc = await addDoc(notesRef, {
-        content,
-        userId,
-        createdAt: new Date().toISOString()
-      });
-      return { success: true, id: newDoc.id };
+      try {
+        const newDoc = await addDoc(notesRef, {
+          content,
+          userId,
+          createdAt: new Date().toISOString()
+        });
+        return { success: true, id: newDoc.id };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.CREATE, "notes");
+      }
     case "list":
-      const q = query(notesRef, where("userId", "==", userId));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const q = query(notesRef, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.LIST, "notes");
+      }
     case "delete":
       if (!noteId) return { error: "noteId required" };
-      await deleteDoc(doc(db, "notes", noteId));
-      return { success: true };
+      try {
+        await deleteDoc(doc(db, "notes", noteId));
+        return { success: true };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.DELETE, `notes/${noteId}`);
+      }
   }
 }
 
@@ -170,22 +198,34 @@ async function handleScheduleAction(args: any, userId: string) {
 
   switch (action) {
     case "create":
-      const newDoc = await addDoc(scheduleRef, {
-        title,
-        startTime,
-        endTime,
-        location: location || "",
-        userId,
-        createdAt: new Date().toISOString()
-      });
-      return { success: true, id: newDoc.id };
+      try {
+        const newDoc = await addDoc(scheduleRef, {
+          title,
+          startTime,
+          endTime,
+          location: location || "",
+          userId,
+          createdAt: new Date().toISOString()
+        });
+        return { success: true, id: newDoc.id };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.CREATE, "schedules");
+      }
     case "list":
-      const q = query(scheduleRef, where("userId", "==", userId));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const q = query(scheduleRef, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.LIST, "schedules");
+      }
     case "delete":
       if (!eventId) return { error: "eventId required" };
-      await deleteDoc(doc(db, "schedules", eventId));
-      return { success: true };
+      try {
+        await deleteDoc(doc(db, "schedules", eventId));
+        return { success: true };
+      } catch (error) {
+        return handleFirestoreError(error, OperationType.DELETE, `schedules/${eventId}`);
+      }
   }
 }

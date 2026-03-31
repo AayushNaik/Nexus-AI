@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { auth, db } from './lib/firebase';
+import { auth, db, isFirebaseConfigured, handleFirestoreError, OperationType } from './lib/firebase';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
 import { 
   collection, 
@@ -68,6 +68,10 @@ export default function App() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -76,22 +80,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isFirebaseConfigured) return;
 
     const qTasks = query(collection(db, 'tasks'), where('userId', '==', user.uid));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'tasks'));
 
     const qNotes = query(collection(db, 'notes'), where('userId', '==', user.uid));
     const unsubNotes = onSnapshot(qNotes, (snapshot) => {
       setNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note)));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'notes'));
 
     const qSchedules = query(collection(db, 'schedules'), where('userId', '==', user.uid));
     const unsubSchedules = onSnapshot(qSchedules, (snapshot) => {
       setSchedules(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Schedule)));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'schedules'));
 
     return () => {
       unsubTasks();
@@ -141,6 +145,7 @@ export default function App() {
       setIsTaskModalOpen(false);
       setEditingItem(null);
     } catch (error) {
+      handleFirestoreError(error, editingItem?.id ? OperationType.UPDATE : OperationType.CREATE, 'tasks');
       toast.error('Failed to save task');
     }
   };
@@ -150,6 +155,7 @@ export default function App() {
       await deleteDoc(doc(db, 'tasks', id));
       toast.success('Task deleted');
     } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `tasks/${id}`);
       toast.error('Failed to delete task');
     }
   };
@@ -160,6 +166,7 @@ export default function App() {
       await updateDoc(doc(db, 'tasks', task.id!), { status: newStatus });
       toast.success(`Task marked as ${newStatus}`);
     } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tasks/${task.id}`);
       toast.error('Failed to update task');
     }
   };
@@ -185,6 +192,7 @@ export default function App() {
       setIsNoteModalOpen(false);
       setEditingItem(null);
     } catch (error) {
+      handleFirestoreError(error, editingItem?.id ? OperationType.UPDATE : OperationType.CREATE, 'notes');
       toast.error('Failed to save note');
     }
   };
@@ -194,6 +202,7 @@ export default function App() {
       await deleteDoc(doc(db, 'notes', id));
       toast.success('Note deleted');
     } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `notes/${id}`);
       toast.error('Failed to delete note');
     }
   };
@@ -222,6 +231,7 @@ export default function App() {
       setIsScheduleModalOpen(false);
       setEditingItem(null);
     } catch (error) {
+      handleFirestoreError(error, editingItem?.id ? OperationType.UPDATE : OperationType.CREATE, 'schedules');
       toast.error('Failed to save event');
     }
   };
@@ -231,6 +241,7 @@ export default function App() {
       await deleteDoc(doc(db, 'schedules', id));
       toast.success('Event deleted');
     } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `schedules/${id}`);
       toast.error('Failed to delete event');
     }
   };
@@ -256,6 +267,35 @@ export default function App() {
       setIsTyping(false);
     }
   };
+
+  if (!isFirebaseConfigured) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-[#151619] border border-[#F27D26]/20 rounded-2xl p-8 text-center space-y-6">
+          <div className="w-16 h-16 bg-[#F27D26]/10 rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8 text-[#F27D26]" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">Firebase Setup Required</h1>
+            <p className="text-gray-400 text-sm">
+              Nexus AI requires a Firebase project to store your data and manage authentication.
+            </p>
+          </div>
+          <div className="bg-black/40 rounded-xl p-4 text-left space-y-3 border border-white/5">
+            <p className="text-xs font-mono text-gray-500 uppercase tracking-widest">Setup Instructions</p>
+            <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
+              <li>Open the Firebase setup UI in the agent chat.</li>
+              <li>Accept the terms and provision a new project.</li>
+              <li>The app will automatically refresh once configured.</li>
+            </ol>
+          </div>
+          <p className="text-xs text-gray-500">
+            Current Error: <span className="text-[#F27D26] font-mono">auth/invalid-api-key</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

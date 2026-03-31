@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: tasks
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required, 1-100 chars)
+    //   - description: string (optional, < 500 chars)
+    //   - status: string (required, enum: todo, in-progress, completed)
+    //   - priority: string (required, enum: low, medium, high)
+    //   - userId: string (required, immutable)
+    //   - createdAt: string (required, format: ISO 8601)
+    //
+    // Collection: notes
+    // Document ID: auto-generated
+    // Fields:
+    //   - content: string (required, 1-1000 chars)
+    //   - userId: string (required, immutable)
+    //   - createdAt: string (required, format: ISO 8601)
+    //
+    // Collection: schedules
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required, 1-100 chars)
+    //   - startTime: string (required, format: ISO 8601)
+    //   - endTime: string (required, format: ISO 8601)
+    //   - location: string (optional, < 200 chars)
+    //   - userId: string (required, immutable)
+    //   - createdAt: string (required, format: ISO 8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'status', 'priority', 'userId', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.status in ['todo', 'in-progress', 'completed'] &&
+             data.priority in ['low', 'medium', 'high'] &&
+             data.userId is string &&
+             isValidDateString(data.createdAt) &&
+             (!('dueDate' in data) || data.dueDate == null || isValidDateString(data.dueDate));
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['content', 'userId', 'createdAt']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
+             data.userId is string &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidSchedule(data) {
+      return data.keys().hasAll(['title', 'startTime', 'endTime', 'userId', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             isValidDateString(data.startTime) &&
+             isValidDateString(data.endTime) &&
+             data.userId is string &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /tasks/{taskId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidTask(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidTask(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /notes/{noteId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidNote(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidNote(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidSchedule(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidSchedule(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+  }
+}

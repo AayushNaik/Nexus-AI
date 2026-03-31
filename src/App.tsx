@@ -48,9 +48,16 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [messages, setMessages] = useState<AgentMessage[]>(() => {
+    const saved = localStorage.getItem('nexus_chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  
+  useEffect(() => {
+    localStorage.setItem('nexus_chat_history', JSON.stringify(messages));
+  }, [messages]);
   
   // Modal States
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -588,6 +595,49 @@ export default function App() {
                 
                 <section className="p-8 bg-white/5 border border-white/10 rounded-3xl space-y-6">
                   <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-500/10 rounded-2xl">
+                      <AlertCircle className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Firebase Configuration</h3>
+                      <p className="text-sm text-gray-500">Configure your database and authentication.</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-4">
+                    <p className="text-sm text-gray-400 leading-relaxed">
+                      Nexus uses Firebase for real-time data sync and secure authentication. 
+                      If you declined the automated setup, you can manually configure your project here.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-gray-600">Project ID</label>
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={import.meta.env.VITE_FIREBASE_PROJECT_ID || 'Not Configured'} 
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-gray-600">Auth Domain</label>
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'Not Configured'} 
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-500 italic">
+                      To update these values, set the corresponding VITE_FIREBASE_* environment variables in your deployment settings.
+                    </p>
+                  </div>
+                </section>
+
+                <section className="p-8 bg-white/5 border border-white/10 rounded-3xl space-y-6">
+                  <div className="flex items-center gap-4">
                     <div className="p-3 bg-[#F27D26]/10 rounded-2xl">
                       <Key className="w-6 h-6 text-[#F27D26]" />
                     </div>
@@ -667,6 +717,20 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="h-full flex flex-col max-w-4xl mx-auto"
               >
+                <div className="flex justify-between items-center mb-6">
+                  <h1 className="text-4xl font-bold tracking-tighter">AI Chat</h1>
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('Clear all chat history?')) {
+                        setMessages([]);
+                        localStorage.removeItem('nexus_chat_history');
+                      }
+                    }}
+                    className="text-xs text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> Clear History
+                  </button>
+                </div>
                 <div className="flex-1 overflow-y-auto space-y-6 pb-24 scrollbar-hide">
                   {messages.length === 0 && (
                     <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
